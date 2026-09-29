@@ -3,7 +3,7 @@
 #  iroh 中继 · 一台机器的全部部署
 #
 #  用法（新机器上一条命令）：
-#     bash -c "$(curl -sSL https://raw.githubusercontent.com/baisuipingan/iroh-relay-install/main/install.sh)"
+#     bash -c "$(curl -sSL https://get.editor.vip/iroh/install.sh)"
 #  卸载：
 #     bash -c "$(curl -sSL …/install.sh)" remove
 #
