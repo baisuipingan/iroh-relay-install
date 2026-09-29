@@ -28,7 +28,10 @@ er() { c "31" "  ✗ $*"; exit 1; }
 hr() { c "90" "────────────────────────────────────────────────────────────"; }
 
 # ---------------------------------------------------------------- 卸载
-if [ "${1:-}" = "remove" ] || [ "${2:-}" = "remove" ]; then
+# 卸载参数三种写法都认：bash install.sh remove / bash -c "..." remove（此时是 $0）/ bash -c "..." -- remove
+ARG_REMOVE=0
+for a in "${0:-}" "${1:-}" "${2:-}"; do [ "$a" = "remove" ] && ARG_REMOVE=1; done
+if [ "$ARG_REMOVE" = "1" ]; then
   hr; c "1" " 卸载 iroh 中继"; hr
   [ -d "$DIR" ] || er "没找到 $DIR，这台机器没装过"
   D=$(sed -n 's/^DOMAIN=//p' "$DIR/.env" 2>/dev/null || true)
