@@ -33,15 +33,18 @@ ARG_REMOVE=0
 for a in "${0:-}" "${1:-}" "${2:-}"; do [ "$a" = "remove" ] && ARG_REMOVE=1; done
 if [ "$ARG_REMOVE" = "1" ]; then
   hr; c "1" " 卸载 iroh 中继"; hr
-  [ -d "$DIR" ] || er "没找到 $DIR，这台机器没装过"
+  # 不依赖安装目录是否存在：目录丢了也要能把容器/cron/防火墙清掉
   D=$(sed -n 's/^DOMAIN=//p' "$DIR/.env" 2>/dev/null || true)
   P=$(sed -n 's/^RELAY_PORT=//p' "$DIR/.env" 2>/dev/null || true)
-  (cd "$DIR" && docker compose down 2>/dev/null) || true
+  [ -d "$DIR" ] && (cd "$DIR" && docker compose down 2>/dev/null) || true
   docker rm -f iroh-relay >/dev/null 2>&1 || true
-  crontab -l 2>/dev/null | grep -v "$DIR/cert-sync.sh" | crontab - 2>/dev/null || true
-  if [ -n "$P" ]; then ufw delete allow "$P/tcp" >/dev/null 2>&1 || true; fi
+  crontab -l 2>/dev/null | grep -v 'iroh' | crontab - 2>/dev/null || true
+  for port in $P 15443 8443 8444; do
+    [ -n "$port" ] && ufw delete allow "$port/tcp" >/dev/null 2>&1 || true
+  done
   rm -rf "$DIR"
-  ok "已删除 $DIR、容器、cron 任务与防火墙规则"
+  ok "已删除容器、cron 任务与防火墙规则"
+  [ -d "$DIR" ] || wa "安装目录本来就不存在（已跳过）"
   if [ -n "$D" ]; then wa "证书目录保留，如需一并删除：rm -rf /root/.acme.sh/${D}_ecc"; fi
   exit 0
 fi
