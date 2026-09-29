@@ -147,6 +147,8 @@ services:
     container_name: iroh-relay
     network_mode: host
     restart: unless-stopped
+    environment:
+      - RUST_LOG=info          # 不加这个容器不打日志，排查时会一片空白
     volumes:
       - ./relay.toml:/etc/iroh-relay/relay.toml:ro
       - ./certs:/etc/iroh-relay/certs:ro
