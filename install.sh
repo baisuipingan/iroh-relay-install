@@ -45,7 +45,7 @@ if [ "$ARG_REMOVE" = "1" ]; then
   rm -rf "$DIR"
   ok "已删除容器、cron 任务与防火墙规则"
   [ -d "$DIR" ] || wa "安装目录本来就不存在（已跳过）"
-  if [ -n "$D" ]; then wa "证书目录保留，如需一并删除：rm -rf /root/.acme.sh/${D}_ecc"; fi
+  if [ -n "$D" ]; then wa "证书与 Token 保留（要清掉）：rm -rf /root/.acme.sh/${D}_ecc $TOKEN_FILE"; fi
   exit 0
 fi
 
@@ -82,14 +82,11 @@ if [ -n "$RESOLVED" ] && [ -n "$MYPUB" ] && [ "$RESOLVED" != "$MYPUB" ]; then
   read -rp "  仍要继续？[y/N] " a; [ "${a:-n}" = "y" ] || exit 1
 fi
 
-# Cloudflare Token：本机已保存过就不再问
-TOKEN_SAVED=0
-if [ -f /root/.acme.sh/account.conf ] && grep -q '^SAVED_CF_Token=' /root/.acme.sh/account.conf; then
-  TOKEN_SAVED=1
-fi
+# Cloudflare Token：存到我们自己的文件里（acme.sh 不保证持久化 DNS 凭据）
+TOKEN_FILE=/root/.iroh-relay-cf-token
 if [ -z "${CF_TOKEN:-}" ]; then
-  if [ "$TOKEN_SAVED" = "1" ]; then
-    ok "使用本机已保存的 Cloudflare Token（要更换：删掉 /root/.acme.sh/account.conf 再跑）"
+  if [ -s "$TOKEN_FILE" ]; then
+    ok "使用本机已保存的 Token（$TOKEN_FILE；要更换就删掉它再跑）"
   else
     c "90" " 证书用 Cloudflare DNS-01 签发（不占任何端口），需要一枚 API Token"
     c "90" " 权限：Zone → DNS → Edit 与 Zone → Zone → Read，范围限定到你的域名"
@@ -171,6 +168,11 @@ else
     || er "签发失败：检查域名是否在 Cloudflare 托管、Token 权限是否含 Zone:DNS:Edit 与 Zone:Zone:Read"
 fi
 
+if [ -n "${CF_TOKEN:-}" ]; then
+  printf '%s' "$CF_TOKEN" > "$TOKEN_FILE"; chmod 600 "$TOKEN_FILE"
+  ok "Token 已保存到 $TOKEN_FILE（供自动续期使用）"
+fi
+
 CERT_SRC="/root/.acme.sh/${DOMAIN}_ecc"
 cat > .env <<ENV
 DOMAIN=$DOMAIN
@@ -219,9 +221,23 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: a
   ufw allow "$RELAY_PORT/tcp" >/dev/null && ok "ufw 放行 $RELAY_PORT/tcp"
 fi
 
-if ! crontab -l 2>/dev/null | grep -q "$DIR/cert-sync.sh"; then
-  (crontab -l 2>/dev/null; echo "0 */6 * * * $DIR/cert-sync.sh >> /var/log/iroh-cert-sync.log 2>&1") | crontab -
-  ok "已加入 cron：每 6 小时同步证书（中继自动重读，不重启）"
+cat > renew.sh <<'SH'
+#!/usr/bin/env bash
+# 续期 + 部署。acme.sh 自己的全局 cron 拿不到我们的 DNS 凭据，所以这里自己管。
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+. "$HERE/.env"
+TOKEN_FILE=/root/.iroh-relay-cf-token
+if [ -s "$TOKEN_FILE" ]; then export CF_Token="$(cat "$TOKEN_FILE")"; fi
+"/root/.acme.sh/acme.sh" --renew -d "$DOMAIN" --ecc --server letsencrypt >/dev/null 2>&1 || true
+"$HERE/cert-sync.sh"
+SH
+chmod +x renew.sh
+
+crontab -l 2>/dev/null | grep -v "$DIR/cert-sync.sh" | crontab - 2>/dev/null || true
+if ! crontab -l 2>/dev/null | grep -q "$DIR/renew.sh"; then
+  (crontab -l 2>/dev/null; echo "0 */6 * * * $DIR/renew.sh >> /var/log/iroh-renew.log 2>&1") | crontab -
+  ok "已加入 cron：每 6 小时检查续期并同步（中继自动重读，不重启）"
 fi
 
 # ---------------------------------------------------------------- 验收
