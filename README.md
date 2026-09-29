@@ -40,7 +40,9 @@ bash -c "$(curl -sSL https://get.editor.vip/iroh/install.sh)"
 | 2 | Cloudflare API Token | **只在机器上第一次装时问一次**（acme.sh 会保存，后续不再问） |
 | 3 | 对外端口 | 默认 **15443**，直接回车即可 |
 
-证书只有一条路径：**Cloudflare DNS-01 签发**（不占 80/443/任何端口，全自动续期）。
+证书只有一条路径：**Cloudflare DNS-01 签发**（不占 80/443/任何端口）。
+Token 存在 `/root/.iroh-relay-cf-token`（600），同一台机器只问一次。
+续期由脚本自己的 cron 负责（每 6 小时），**续期后最长 24 小时内自动生效**（中继的重载轮询间隔就是 24h）；要立刻生效就 `docker compose restart`。
 Token 权限：`Zone → DNS → Edit` + `Zone → Zone → Read`，范围限定到你的域名。
 
 支持环境变量非交互运行（CI / 批量装机）：
