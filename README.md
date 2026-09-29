@@ -49,7 +49,7 @@ Token 权限：`Zone → DNS → Edit` + `Zone → Zone → Read`，范围限定
 
 ```bash
 DOMAIN=relay-3.editor.vip CF_TOKEN=xxx CONFIRM=yes \
-  bash -c "$(curl -sSL https://raw.githubusercontent.com/baisuipingan/iroh-relay-install/main/install.sh)"
+  bash -c "$(curl -sSL https://get.editor.vip/iroh/install.sh)"
 ```
 
 ## 脚本会做什么
