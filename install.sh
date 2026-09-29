@@ -231,6 +231,8 @@ TOKEN_FILE=/root/.iroh-relay-cf-token
 if [ -s "$TOKEN_FILE" ]; then export CF_Token="$(cat "$TOKEN_FILE")"; fi
 "/root/.acme.sh/acme.sh" --renew -d "$DOMAIN" --ecc --server letsencrypt >/dev/null 2>&1 || true
 "$HERE/cert-sync.sh"
+# 中继的重载轮询间隔是 24 小时（DEFAULT_CERT_RELOAD_INTERVAL），所以续期后最长 24h 生效。
+# 证书是在到期前 30 天续的，等 24h 没有任何影响；真要立刻生效就重启容器（几秒）。
 SH
 chmod +x renew.sh
 
@@ -258,6 +260,9 @@ echo
 hr; c "32" " 装完了"; hr
 echo "  中继地址（加进前端名单）："
 c "36" "    https://$DOMAIN:$RELAY_PORT"
+echo
+echo "  证书：续期全自动，最长 24 小时内生效（中继的轮询间隔就是 24h）"
+echo "        要立刻生效（几秒）：cd $DIR && docker compose restart"
 echo
 echo "  常用命令："
 echo "    cd $DIR && docker compose logs -f            # 日志"
