@@ -51,13 +51,19 @@ fi
 
 # ---------------------------------------------------------------- 交互
 need() {  # need <变量名> <提示> [默认值] [quiet]
-  local name="$1" prompt="$2" def="${3:-}" quiet="${4:-}" val
+  local name="$1" prompt="$2" def="${3:-}" quiet="${4:-}" val from_env=0
   eval "val=\${$name:-}"
-  if [ -z "$val" ] && [ -n "$def" ]; then val="$def"; fi
-  if [ -z "$val" ]; then
-    [ -t 0 ] || er "非交互运行：请用环境变量提供 $name"
-    if [ -n "$quiet" ]; then read -rsp "  $prompt" val; echo; else read -rp "  $prompt" val; fi
+  [ -n "$val" ] && from_env=1
+  if [ "$from_env" = "0" ] && [ -t 0 ]; then
+    if [ -n "$quiet" ]; then
+      read -rsp "  $prompt" val; echo
+    else
+      [ -n "$def" ] && prompt="$prompt [$def]: "
+      read -rp "  $prompt" val
+    fi
   fi
+  [ -z "$val" ] && val="$def"
+  [ -n "$val" ] || er "缺少 $name（非交互运行请用环境变量提供）"
   eval "$name=\$val"
 }
 
