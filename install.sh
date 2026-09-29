@@ -124,6 +124,15 @@ command -v docker >/dev/null 2>&1 || er "没装 docker。先装：curl -fsSL htt
 docker compose version >/dev/null 2>&1 || er "docker compose 不可用（docker 版本太老？）"
 ok "docker $(docker --version | awk '{print $3}' | tr -d ,)"
 
+# 访问控制：给了 RELAY_TOKEN 就用共享 token，否则 everyone（不推荐）
+if [ -n "${RELAY_TOKEN:-}" ]; then
+  ACCESS_LINE="access.shared_token = [\"$RELAY_TOKEN\"]"
+  ok "已启用共享 token 鉴权"
+else
+  ACCESS_LINE='access = "everyone"'
+  wa "未设置 RELAY_TOKEN：中继对所有人开放（谁拿到 URL 都能用）"
+fi
+
 mkdir -p "$DIR/certs"; cd "$DIR"
 
 # ---------------------------------------------------------------- 配置文件
@@ -132,7 +141,7 @@ enable_relay = true
 http_bind_addr = "127.0.0.1:0"           # 0 = 系统随便给个空闲口，不占 80/3340
 enable_quic_addr_discovery = false       # 纯中继不打洞：不占任何 UDP 端口
 enable_metrics = false                   # 不用就不开
-access = "everyone"
+${ACCESS_LINE}
 
 [tls]
 https_bind_addr = "0.0.0.0:$RELAY_PORT"
